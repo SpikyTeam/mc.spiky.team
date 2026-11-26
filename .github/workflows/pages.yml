@@ -1,12 +1,15 @@
 ﻿name: pages
 
-# Rebuilds mc.spiky.team: downloads the latest meta-v1.zip release asset,
-# unpacks it into build/meta/ and adds the site tree from SpikyMC-Sites.
-# Runs on a timer, after a metadata publish, and by hand.
+# Publishes mc.spiky.team as it was on the former host: the landing page is
+# prerendered from nuxt/ in SpikyMC-Sites by .github/workflows/nuxt-dist.yml
+# (which pushes it under the trees below), and the launcher's data trees are
+# copied next to it here.
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "47 * * * *"
 
 permissions:
   contents: read
@@ -21,17 +24,24 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # gh-pages carries the prerendered landing page and the metadata bundle
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
+          repository: SpikyTeam/mc.spiky.team
+          token: ${{ secrets.PUBLISH_TOKEN }}
+          ref: gh-pages
+          path: site
+
+      - uses: actions/checkout@v4
+        with:
+          repository: SpikyTeam/SpikyMC-Sites
+          token: ${{ secrets.PUBLISH_TOKEN }}
+          path: sources
+
+      - name: Assemble
+        run: bash sources/.github/workflows/assemble-mc.sh site sources build
+
       - uses: actions/configure-pages@v5
-      - run: npm ci
-      - run: node build.js
-        env:
-          SOURCES_REPO: SpikyTeam/SpikyMC-Sites
-          GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build
