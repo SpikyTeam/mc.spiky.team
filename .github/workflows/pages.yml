@@ -1,0 +1,47 @@
+﻿name: pages
+
+# Rebuilds mc.spiky.team: downloads the latest meta-v1.zip release asset,
+# unpacks it into build/meta/ and adds the site tree from SpikyMC-Sites.
+# Runs on a timer, after a metadata publish, and by hand.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/configure-pages@v5
+      - run: npm ci
+      - run: node build.js
+        env:
+          SOURCES_REPO: SpikyTeam/SpikyMC-Sites
+          GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
